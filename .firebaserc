@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "vedyx-ai",
+    "vedyx dev": "vedyx-ai"
+  },
+  "targets": {},
+  "etags": {}
+}
