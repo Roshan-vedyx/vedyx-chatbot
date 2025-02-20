@@ -1,67 +1,93 @@
-import { useState, useEffect, useRef } from "react";
-import { auth, firestore } from "./firebase";
-import { signInWithRedirect, GoogleAuthProvider, signOut } from "firebase/auth";
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import axios from "axios";
-import Markdown from "react-markdown";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import PreferencesForm from './PreferencesForm';
+import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { db, auth, googleProvider } from "./services/firebase";
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInWithPopup, 
+  signOut 
+} from "firebase/auth";
+import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import AuthModal from "./components/AuthModal";
+import Chat from "./components/Chat";
+import PreferencesForm from "./components/PreferencesForm";
+import { Box, Spinner, Text, Button } from "@chakra-ui/react";
 
-function App() {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+function AppContent() {
   const [user, setUser] = useState(null);
-  const chatWindowRef = useRef(null);
-  const navigate = useNavigate(); // Now useNavigate() works fine
-
-  const userPreferences = {
-    subject: "science",
-    interests: ["space", "biology"],
-    learningStyle: "visual",
-  };
-
-  const systemPrompt = `You are Vedyx, a highly personalized AI tutor. The user wants to learn about ${userPreferences.subject}.
-    - If teaching math, return equations in LaTeX format.
-    - If teaching science, use real-world analogies and experiments.
-    - If teaching history, use storytelling and emphasize key historical events.
-    - Adapt to the user’s interests: ${userPreferences.interests.join(", ")}.
-    - Use ${userPreferences.learningStyle} methods where possible.
-    Ask engaging follow-up questions to deepen understanding.`;
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false); // Default is closed
+  const navigate = useNavigate();
 
   useEffect(() => {
-    auth.onAuthStateChanged((authUser) => {
-      setUser(authUser);
-      if (authUser) {
-        loadPreviousMessages(authUser.uid);
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        loadPreviousMessages(currentUser.uid);
+      }
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loadPreviousMessages = async (userId) => {
+    try {
+      setIsLoading(true);
+      const q = query(
+        collection(db, "chats"),
+        where("userId", "==", userId),
+        orderBy("createdAt", "asc")
+      );
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        setMessages(querySnapshot.docs[0].data().messages || []);
       } else {
         setMessages([]);
       }
-    });
-
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
-  }, []);
-
-  const loginWithGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
     } catch (error) {
-      console.error("Login failed", error);
+      console.error("Error loading messages:", error);
+      setError("Error loading messages. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailLogin = async (email, password) => {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      setUser(userCredential.user);
+      setAuthModalOpen(false); // Close modal after login
+      navigate("/chat");
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Invalid email or password.");
+    }
+  };
+
+  const handleEmailSignup = async (email, password) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      setUser(userCredential.user);
+      setAuthModalOpen(false); // Close modal after signup
+      navigate("/preferences");
+    } catch (error) {
+      console.error("Signup error:", error);
+      setError(error.message);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      setUser(userCredential.user);
+      setAuthModalOpen(false); // Close modal after Google login
+      navigate("/preferences");
+    } catch (error) {
+      console.error("Google login error:", error);
+      setError("Google login failed.");
     }
   };
 
@@ -69,35 +95,57 @@ function App() {
     await signOut(auth);
     setUser(null);
     setMessages([]);
-    navigate("/login"); // Redirect user to login page after logout
+    navigate("/"); 
   };
 
-  const loadPreviousMessages = async (userId) => {
-    // Load previous messages logic here
-  };
-
-  const sendMessage = async () => {
-    // Send message logic here
-  };
+  if (isLoading) {
+    return (
+      <Box textAlign="center" mt="20">
+        <Spinner size="xl" />
+      </Box>
+    );
+  }
 
   return (
-    <Routes>
-      <Route path="/" element={user ? (
-        <div className="chat-container">
-          {/* Chat UI */}
-        </div>
-      ) : (
-        <Navigate to="/login" />
-      )} />
-      <Route path="/login" element={
-        <div className="login-container">
-          <h1>Please Login</h1>
-          <button className="login-btn" onClick={loginWithGoogle}>Login with Google</button>
-        </div>
-      } />
-      <Route path="/preferences" element={user ? <PreferencesForm /> : <Navigate to="/login" />} />
-    </Routes>
+    <Box className="app-container" textAlign="center" p="4">
+      <Box className="chat-header" mb="4">
+        <Text fontSize="2xl" fontWeight="bold">Vedyx AI Tutor</Text>
+        {!user ? (
+          <Button colorScheme="blue" onClick={() => setAuthModalOpen(true)}>
+            Login / Sign Up
+          </Button>
+        ) : (
+          <Button colorScheme="red" onClick={handleLogout}>
+            Logout
+          </Button>
+        )}
+      </Box>
+
+      {error && (
+        <Box bg="red.100" p="3" borderRadius="md" mb="4">
+          {error}
+          <Button size="xs" ml="2" onClick={() => setError(null)}>✕</Button>
+        </Box>
+      )}
+
+      <Routes>
+        <Route path="/chat" element={user ? <Chat user={user} messages={messages} setMessages={setMessages} /> : null} />
+        <Route path="/preferences" element={<PreferencesForm user={user} />} />
+      </Routes>
+
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setAuthModalOpen(false)}
+        onLogin={handleEmailLogin} 
+        onSignup={handleEmailSignup} 
+        onGoogleLogin={handleGoogleLogin} 
+      />
+    </Box>
   );
+}
+
+function App() {
+  return <Router><AppContent /></Router>;
 }
 
 export default App;

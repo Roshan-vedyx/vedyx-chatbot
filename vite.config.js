@@ -1,13 +1,12 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import path from 'path'; // for resolving paths
+import path from 'path';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src'), // this tells Vite to resolve '@' to the 'src' folder
+      '@': path.resolve(__dirname, 'src'),
     },
   },
   optimizeDeps: {
@@ -15,11 +14,25 @@ export default defineConfig({
   },
   build: {
     commonjsOptions: {
-      // This helps handle dynamic imports
       requireReturnsDefault: 'auto',
     },
   },
   css: {
-    postcss: './postcss.config.js', // Ensure the PostCSS config is loaded
+    postcss: './postcss.config.js',
+  },
+  server: {
+    host: "127.0.0.1",  
+    port: 5173,
+    strictPort: true,
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"], 
+      allowedHeaders: ["Content-Type", "Authorization"],
+    },
+    headers: {
+      "Cross-Origin-Opener-Policy": "same-origin-allow-popups", // ✅ Fixes Firebase popup login issue
+      "Cross-Origin-Embedder-Policy": "require-corp", // Ensures proper embedding
+      "Access-Control-Allow-Origin": "*", 
+    },
   },
 });
