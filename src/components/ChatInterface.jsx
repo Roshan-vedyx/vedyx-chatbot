@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
@@ -11,6 +11,7 @@ import { FaRegFileAlt, FaShareAlt, FaCog, FaQuestionCircle, FaBars, FaPlus } fro
 const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, chatHistory, loadChat, startNewChat }) => {
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const navigate = useNavigate();
+  const messagesEndRef = useRef(null);
 
   const handleLogout = async () => {
     try {
@@ -20,6 +21,11 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
       console.error("Logout failed:", error);
     }
   };
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   return (
     <Flex height="100vh" bg="gray.100">
@@ -71,7 +77,7 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
         <Box flex="1" p={4} overflowY="auto" bg="white" boxShadow="md" borderRadius="md">
           {messages.length === 0 ? (
             <Text fontSize="lg" color="gray.500" textAlign="center" mt="20">
-              What do you want to learn today, {user.displayName || "Student"}? 😊
+              What do you want to learn today, {user?.displayName || "Student"}? 😊
             </Text>
           ) : (
             messages.map((msg, index) => (
@@ -88,32 +94,35 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
               </Flex>
             ))
           )}
+          <div ref={messagesEndRef} /> {/* Auto-scroll reference */}
         </Box>
 
         {/* Input Area */}
-        {user && (
-          <Box position="sticky" bottom="0" bg="gray.50" p={3} boxShadow="md">
-            <Flex align="center">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me anything..."
-                size="lg"
-                resize="none"
-                flex="1"
-              />
-              <Button 
-                colorScheme="teal" 
-                onClick={sendMessage} 
-                isLoading={loading} 
-                loadingText="Thinking..." 
-                ml={2}
-              >
-                Send
-              </Button>
-            </Flex>
-          </Box>
-        )}
+        <Box position="sticky" bottom="0" bg="gray.50" p={3} boxShadow="md">
+          <Flex align="center">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask me anything..."
+              size="lg"
+              resize="none"
+              flex="1"
+            />
+            <Button 
+              colorScheme="teal" 
+              onClick={() => {
+                console.log("Send button clicked, input:", input);
+                if (!input.trim()) return; // Prevent empty messages
+                sendMessage();
+              }} 
+              isLoading={loading} 
+              loadingText="Thinking..." 
+              ml={2}
+            >
+              Send
+            </Button>
+          </Flex>
+        </Box>
       </Box>
 
       {/* Top Right Icons */}

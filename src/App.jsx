@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { db, auth, googleProvider } from "./services/firebase";
 import { 
   signInWithEmailAndPassword, 
@@ -18,7 +18,7 @@ function AppContent() {
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthModalOpen, setAuthModalOpen] = useState(false); // Default is closed
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,7 +49,7 @@ function AppContent() {
       }
     } catch (error) {
       console.error("Error loading messages:", error);
-      setError("Error loading messages. Please try again.");
+      setError("Error loading messages. Please check your Firestore rules.");
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +59,7 @@ function AppContent() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       setUser(userCredential.user);
-      setAuthModalOpen(false); // Close modal after login
+      setAuthModalOpen(false);
       navigate("/chat");
     } catch (error) {
       console.error("Login error:", error);
@@ -71,7 +71,7 @@ function AppContent() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       setUser(userCredential.user);
-      setAuthModalOpen(false); // Close modal after signup
+      setAuthModalOpen(false);
       navigate("/preferences");
     } catch (error) {
       console.error("Signup error:", error);
@@ -83,7 +83,7 @@ function AppContent() {
     try {
       const userCredential = await signInWithPopup(auth, googleProvider);
       setUser(userCredential.user);
-      setAuthModalOpen(false); // Close modal after Google login
+      setAuthModalOpen(false);
       navigate("/preferences");
     } catch (error) {
       console.error("Google login error:", error);
@@ -95,7 +95,7 @@ function AppContent() {
     await signOut(auth);
     setUser(null);
     setMessages([]);
-    navigate("/"); 
+    navigate("/");
   };
 
   if (isLoading) {
@@ -129,7 +129,8 @@ function AppContent() {
       )}
 
       <Routes>
-        <Route path="/chat" element={user ? <Chat user={user} messages={messages} setMessages={setMessages} /> : null} />
+        <Route path="/" element={<Navigate to="/chat" />} />
+        <Route path="/chat" element={<Chat user={user} messages={messages} setMessages={setMessages} />} />
         <Route path="/preferences" element={<PreferencesForm user={user} />} />
       </Routes>
 

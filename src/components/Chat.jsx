@@ -4,7 +4,6 @@ import {
   collection,
   doc,
   query,
-  where,
   orderBy,
   addDoc,
   updateDoc,
@@ -22,25 +21,39 @@ const Chat = ({ user }) => {
   const [loading, setLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [currentChatId, setCurrentChatId] = useState(null);
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("Student");
   const [error, setError] = useState("");
-  const chatWindowRef = useRef(null);
+  const [isAnonymous, setIsAnonymous] = useState(!user);
   const initialized = useRef(false);
+  const anonymousMessagesRef = useRef([]);
 
   const systemPrompt = "You are Vedyx, a personalized AI tutor...";
 
   useEffect(() => {
-    if (user && !initialized.current) {
+    if (!isAnonymous && user && !initialized.current) {
       initialized.current = true;
       fetchUserData();
+    } else if (isAnonymous && !initialized.current) {
+      initialized.current = true;
+      // Set up anonymous chat
+      setMessages([{ sender: "ai", text: `What do you want to learn today, ${userName}? 😊`, timestamp: new Date() }]);
+      anonymousMessagesRef.current = [{ sender: "ai", text: `What do you want to learn today, ${userName}? 😊`, timestamp: new Date() }];
+    }
+  }, [user, isAnonymous]);
+
+  // If user logs in during an anonymous session
+  useEffect(() => {
+    if (user && isAnonymous) {
+      setIsAnonymous(false);
+      initialized.current = false; // Reset initialization to fetch user data
     }
   }, [user]);
 
   useEffect(() => {
-    if (currentChatId) {
+    if (!isAnonymous && currentChatId) {
       loadChat(currentChatId);
     }
-  }, [currentChatId]);
+  }, [currentChatId, isAnonymous]);
 
   const fetchUserData = async () => {
     if (!user) return;
@@ -48,13 +61,10 @@ const Chat = ({ user }) => {
     try {
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
-
       if (userSnap.exists()) {
         setUserName(userSnap.data().name || "Student");
       }
-
       const chats = await fetchChatHistory();
-      
       if (chats.length === 0) {
         await startNewChat();
       } else {
@@ -62,25 +72,22 @@ const Chat = ({ user }) => {
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      setError("Error loading user data. Please refresh the page.");
+      setError("Error loading user data. Please refresh.");
     }
   };
 
   const fetchChatHistory = async () => {
     if (!user) return [];
-
     try {
       const q = query(
         collection(db, `users/${user.uid}/chats`),
         orderBy("createdAt", "desc")
       );
-
       const querySnapshot = await getDocs(q);
       const history = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         title: doc.data().title || "New Chat",
       }));
-
       setChatHistory(history);
       return history;
     } catch (error) {
@@ -91,57 +98,44 @@ const Chat = ({ user }) => {
   };
 
   const startNewChat = async () => {
-    if (!user) return;
-
+    if (!user) {
+      // For anonymous users, just reset messages
+      setMessages([{ sender: "ai", text: `What do you want to learn today, ${userName}? 😊`, timestamp: new Date() }]);
+      anonymousMessagesRef.current = [{ sender: "ai", text: `What do you want to learn today, ${userName}? 😊`, timestamp: new Date() }];
+      return;
+    }
+    
     try {
       const chatRef = await addDoc(collection(db, `users/${user.uid}/chats`), {
         title: "New Chat",
         userId: user.uid,
         createdAt: serverTimestamp(),
       });
-
       setCurrentChatId(chatRef.id);
-      setMessages([
-        { sender: "ai", text: `What do you want to learn today, ${userName}? 😊` },
-      ]);
-      
-      // Add welcome message to Firestore
-      const messagesRef = collection(chatRef, "messages");
-      await addDoc(messagesRef, {
+      setMessages([{ sender: "ai", text: `What do you want to learn today, ${userName}? 😊`, timestamp: new Date() }]);
+      await addDoc(collection(chatRef, "messages"), {
         sender: "ai",
         text: `What do you want to learn today, ${userName}? 😊`,
         timestamp: new Date(),
       });
-
       await fetchChatHistory();
       setError("");
-      return chatRef.id;
     } catch (error) {
       console.error("Error starting new chat:", error);
       setError("Error starting a new chat. Please try again.");
-      return null;
     }
   };
 
   const loadChat = async (chatId) => {
     if (!user || !chatId) return;
-
     try {
-      setError(""); // Clear error before loading
+      setError("");
       const chatRef = doc(db, `users/${user.uid}/chats/${chatId}`);
-      const messagesQuery = query(
-        collection(chatRef, "messages"),
-        orderBy("timestamp", "asc")
-      );
-
+      const messagesQuery = query(collection(chatRef, "messages"), orderBy("timestamp", "asc"));
       const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-        const chatMessages = snapshot.docs.map((doc) => ({
-          ...doc.data(),
-          id: doc.id,
-        }));
+        const chatMessages = snapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
         setMessages(chatMessages);
       });
-
       return () => unsubscribe();
     } catch (error) {
       console.error("Error loading messages:", error);
@@ -150,74 +144,156 @@ const Chat = ({ user }) => {
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || loading || !currentChatId) return;
-
-    const userMessage = {
-      text: input,
-      sender: "user",
-      timestamp: new Date(),
-    };
-
-    setInput("");
+    if (!input.trim() || loading) return;
     setLoading(true);
+    const userMessage = { text: input, sender: "user", timestamp: new Date() };
+    setInput("");
 
-    try {
-      const chatRef = doc(db, `users/${user.uid}/chats/${currentChatId}`);
-      const messagesRef = collection(chatRef, "messages");
-
-      // Add user message to Firestore
-      await addDoc(messagesRef, userMessage);
-
-      // Update chat title if it's the first message
-      const chatDoc = await getDoc(chatRef);
-      if (chatDoc.exists() && chatDoc.data().title === "New Chat") {
-        await updateDoc(chatRef, {
-          title: input.slice(0, 30) + (input.length > 30 ? "..." : ""),
-        });
-        fetchChatHistory();
-      }
-
+    if (isAnonymous) {
+      // Handle anonymous chat (no Firebase)
+      setMessages(prevMessages => [...prevMessages, userMessage]);
+      anonymousMessagesRef.current = [...anonymousMessagesRef.current, userMessage];
+      
       // Add thinking message
-      const thinkingMessage = {
-        text: "Thinking...",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      const thinkingDoc = await addDoc(messagesRef, thinkingMessage);
-
-      // Get context for AI
-      const contextMessages = messages
-        .concat(userMessage)
-        .slice(-5)
-        .map((msg) => ({
+      const thinkingMessage = { text: "Thinking...", sender: "ai", timestamp: new Date() };
+      setMessages(prevMessages => [...prevMessages, thinkingMessage]);
+      
+      try {
+        const contextMessages = anonymousMessagesRef.current.slice(-5).map((msg) => ({
           role: msg.sender === "user" ? "user" : "assistant",
           content: msg.text,
         }));
-
-      // Get AI response
-      const response = await axios.post(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          model: "gpt-4",
-          messages: [{ role: "system", content: systemPrompt }, ...contextMessages],
-          temperature: 0.7,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+        
+        const response = await axios.post(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            model: "gpt-4",
+            messages: [{ role: "system", content: systemPrompt }, ...contextMessages],
+            temperature: 0.7,
           },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+            },
+          }
+        );
+        
+        const aiMessage = {
+          text: response.data.choices[0]?.message?.content || "No response from AI.",
+          sender: "ai",
+          timestamp: new Date(),
+        };
+        
+        // Replace thinking message with actual response
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.text === "Thinking..." && msg.sender === "ai" ? aiMessage : msg
+          )
+        );
+        anonymousMessagesRef.current = [...anonymousMessagesRef.current.filter(msg => msg.text !== "Thinking..."), aiMessage];
+        
+      } catch (error) {
+        console.error("Error in anonymous chat:", error);
+        setError("Error communicating with AI. Please try again.");
+        // Remove the thinking message
+        setMessages(prevMessages => prevMessages.filter(msg => msg.text !== "Thinking..."));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Handle authenticated chat with Firebase
+    try {
+      if (!currentChatId) {
+        // If currentChatId is null but user is authenticated, start a new chat
+        const chatRef = await addDoc(collection(db, `users/${user.uid}/chats`), {
+          title: input.slice(0, 30) + (input.length > 30 ? "..." : ""),
+          userId: user.uid,
+          createdAt: serverTimestamp(),
+        });
+        setCurrentChatId(chatRef.id);
+        await fetchChatHistory();
+        
+        // Add the user message
+        await addDoc(collection(chatRef, "messages"), userMessage);
+        
+        // Add thinking message
+        const thinkingMessage = { text: "Thinking...", sender: "ai", timestamp: new Date() };
+        const thinkingDoc = await addDoc(collection(chatRef, "messages"), thinkingMessage);
+        
+        // Context is just the user message since this is a new chat
+        const contextMessages = [{
+          role: "user",
+          content: userMessage.text,
+        }];
+        
+        const response = await axios.post(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            model: "gpt-4",
+            messages: [{ role: "system", content: systemPrompt }, ...contextMessages],
+            temperature: 0.7,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+            },
+          }
+        );
+        
+        const aiMessage = {
+          text: response.data.choices[0]?.message?.content || "No response from AI.",
+          sender: "ai",
+          timestamp: new Date(),
+        };
+        
+        await updateDoc(doc(collection(chatRef, "messages"), thinkingDoc.id), aiMessage);
+      } else {
+        const chatRef = doc(db, `users/${user.uid}/chats/${currentChatId}`);
+        const messagesRef = collection(chatRef, "messages");
+        await addDoc(messagesRef, userMessage);
+        
+        const chatDoc = await getDoc(chatRef);
+        if (chatDoc.exists() && chatDoc.data().title === "New Chat") {
+          await updateDoc(chatRef, { title: input.slice(0, 30) + (input.length > 30 ? "..." : "") });
+          fetchChatHistory();
         }
-      );
-
-      const aiMessage = {
-        text: response.data.choices[0]?.message?.content || "No response from AI.",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-
-      // Replace thinking message with AI response
-      await updateDoc(doc(messagesRef, thinkingDoc.id), aiMessage);
+        
+        const thinkingMessage = { text: "Thinking...", sender: "ai", timestamp: new Date() };
+        const thinkingDoc = await addDoc(messagesRef, thinkingMessage);
+        
+        const contextMessages = messages.concat(userMessage).slice(-5).map((msg) => ({
+          role: msg.sender === "user" ? "user" : "assistant",
+          content: msg.text,
+        }));
+        
+        const response = await axios.post(
+          "https://api.openai.com/v1/chat/completions",
+          {
+            model: "gpt-4",
+            messages: [{ role: "system", content: systemPrompt }, ...contextMessages],
+            temperature: 0.7,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+            },
+          }
+        );
+        
+        const aiMessage = {
+          text: response.data.choices[0]?.message?.content || "No response from AI.",
+          sender: "ai",
+          timestamp: new Date(),
+        };
+        
+        await updateDoc(doc(messagesRef, thinkingDoc.id), aiMessage);
+      }
+      
       setError("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -235,10 +311,11 @@ const Chat = ({ user }) => {
       setInput={setInput}
       sendMessage={sendMessage}
       loading={loading}
-      chatHistory={chatHistory}
-      loadChat={loadChat}
+      chatHistory={isAnonymous ? [] : chatHistory}
+      loadChat={isAnonymous ? null : loadChat}
       startNewChat={startNewChat}
       error={error}
+      isAnonymous={isAnonymous}
     />
   );
 };
