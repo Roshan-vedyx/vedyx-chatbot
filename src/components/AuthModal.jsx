@@ -1,16 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton,
   FormControl, FormLabel, Input, Button, VStack, Text, Divider 
 } from "@chakra-ui/react";
 
-function AuthModal({ isOpen, onClose, onLogin, onSignup, onGoogleLogin }) {
+function AuthModal({ isOpen, onClose, onLogin, onSignup, onGoogleLogin, mode = "login" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignup, setIsSignup] = useState(false);
+  const [isSignup, setIsSignup] = useState(mode === "signup"); // Ensure correct mode on open
   const [error, setError] = useState(null);
   const navigate = useNavigate(); 
+
+  // Ensure mode updates properly when opening modal
+  useEffect(() => {
+    setIsSignup(mode === "signup");
+  }, [mode, isOpen]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -37,7 +42,7 @@ function AuthModal({ isOpen, onClose, onLogin, onSignup, onGoogleLogin }) {
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>{isSignup ? "Sign Up" : "Login"}</ModalHeader>
+        <ModalHeader>{isSignup ? "Sign Up For FREE!" : "Login"}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <VStack spacing={4}>
@@ -63,18 +68,19 @@ function AuthModal({ isOpen, onClose, onLogin, onSignup, onGoogleLogin }) {
               />
             </FormControl>
 
-            <Button colorScheme="blue" width="full" onClick={handleSubmit}>
-              {isSignup ? "Sign Up" : "Login"}
+            <Button colorScheme="teal" width="full" onClick={handleSubmit}>
+              {isSignup ? "Sign Up For FREE!" : "Login"}
             </Button>
 
             <Divider />
 
-            <Button colorScheme="red" width="full" onClick={onGoogleLogin}>
+            <Button colorScheme="blue" width="full" onClick={onGoogleLogin}>
               Sign in with Google
             </Button>
 
-            <Text fontSize="sm" cursor="pointer" onClick={() => setIsSignup(!isSignup)}>
-              {isSignup ? "Already have an account? Login" : "Don't have an account? Sign up FOR FREE!"}
+            {/* Switch between login and signup */}
+            <Text fontSize="sm" cursor="pointer" color="blue.500" onClick={() => setIsSignup(!isSignup)}>
+              {isSignup ? "Already have an account? Log in" : "Don't have an account? Sign up for FREE!"}
             </Text>
           </VStack>
         </ModalBody>

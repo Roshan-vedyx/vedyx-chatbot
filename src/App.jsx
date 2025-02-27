@@ -11,7 +11,8 @@ import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import AuthModal from "./components/AuthModal";
 import Chat from "./components/Chat";
 import PreferencesForm from "./components/PreferencesForm";
-import { Box, Spinner, Text, Button } from "@chakra-ui/react";
+import { Box, Spinner, Text, Button, Flex, IconButton, Avatar, Tooltip, HStack } from "@chakra-ui/react";
+import { FaRegFileAlt, FaShareAlt } from "react-icons/fa";
 
 function AppContent() {
   const [user, setUser] = useState(null);
@@ -19,6 +20,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState("login");  // NEW: Tracks whether to show login or signup
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -107,40 +109,91 @@ function AppContent() {
   }
 
   return (
-    <Box className="app-container" textAlign="center" p="4">
-      <Box className="chat-header" mb="4">
-        <Text fontSize="2xl" fontWeight="bold">Vedyx AI Tutor</Text>
-        {!user ? (
-          <Button colorScheme="blue" onClick={() => setAuthModalOpen(true)}>
-            Login / Sign Up
-          </Button>
-        ) : (
-          <Button colorScheme="red" onClick={handleLogout}>
-            Logout
-          </Button>
-        )}
-      </Box>
+    <Box className="app-container" textAlign="center">
+      
+      {/* Sticky Header */}
+      <Flex 
+        className="chat-header" 
+        justify="space-between" 
+        align="center" 
+        p={3} 
+        bg="white" 
+        boxShadow="md"
+        position="sticky"
+        top="0"
+        zIndex="1000"
+      >
+        {/* Vedyx Logo / Title */}
+        <Text fontSize="xl" fontWeight="bold" ml={4}>
+          Vedyx AI Tutor
+        </Text>
 
+        {/* Authentication / User Actions */}
+        <HStack spacing={4} mr={4}>
+          {!isLoading && !user ? (  // Ensure icons don't appear in incognito
+            <>
+              <Button 
+                variant="outline" 
+                color="black" 
+                borderColor="black" 
+                onClick={() => { 
+                  setAuthMode("login"); // NEW: Ensure login mode
+                  setAuthModalOpen(true);
+                }}
+              >
+                Log In
+              </Button>
+              <Button 
+                colorScheme="teal" 
+                onClick={() => {
+                  setAuthMode("signup"); // NEW: Ensure signup mode
+                  setAuthModalOpen(true);
+                }}
+              >
+                Sign Up
+              </Button>
+            </>
+          ) : user && (
+            <>
+              <Tooltip label="Resources" hasArrow>
+                <IconButton icon={<FaRegFileAlt />} aria-label="Resources" variant="ghost" />
+              </Tooltip>
+              <Tooltip label="Share" hasArrow>
+                <IconButton icon={<FaShareAlt />} aria-label="Share" variant="ghost" />
+              </Tooltip>
+              <Tooltip label="Profile & Settings" hasArrow>
+                <Avatar size="sm" cursor="pointer" onClick={handleLogout} />
+              </Tooltip>
+            </>
+          )}
+        </HStack>
+      </Flex>
+
+      {/* Error Message */}
       {error && (
-        <Box bg="red.100" p="3" borderRadius="md" mb="4">
+        <Box bg="red.100" p="3" borderRadius="md" my={4}>
           {error}
           <Button size="xs" ml="2" onClick={() => setError(null)}>✕</Button>
         </Box>
       )}
 
+      {/* Routes */}
       <Routes>
         <Route path="/" element={<Navigate to="/chat" />} />
         <Route path="/chat" element={<Chat user={user} messages={messages} setMessages={setMessages} />} />
         <Route path="/preferences" element={<PreferencesForm user={user} />} />
       </Routes>
 
+      {/* Authentication Modal */}
       <AuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setAuthModalOpen(false)}
+        mode={authMode}  // NEW: Passes "login" or "signup" mode
         onLogin={handleEmailLogin} 
         onSignup={handleEmailSignup} 
         onGoogleLogin={handleGoogleLogin} 
       />
+      
     </Box>
   );
 }
