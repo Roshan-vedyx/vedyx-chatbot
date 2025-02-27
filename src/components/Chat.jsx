@@ -357,29 +357,118 @@ const Chat = ({ user }) => {
       isAnonymous={isAnonymous}
     />
 
-      {showPopup && (
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', bottom: '100%', left: 0, backgroundColor: 'lightgray', padding: '10px' }}>
-          Vedyx learns with you! Save your progress by signing up—it's free.
-          <button onClick={() => { /* Implement sign-up logic */ }}>Sign Up Now</button>
-          <button onClick={() => setShowPopup(false)}>Maybe Later</button>
-        </div>
-      </div>
-      )}
-      {showHardLimit && (
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        You've used your free questions for today! Sign up to continue learning.
-        <button onClick={() => { /* Implement sign-up logic */ }}>Sign Up for Free</button>
-        <p>Come back tomorrow</p>
-      </div>
-      )}
-      {aiResponseBlurred && (
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.5)' }}></div>
-      )}
-  </div>
-);
+<>
+        {showPopup && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "50px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              backgroundColor: "#fff",
+              padding: "12px 16px",
+              borderRadius: "8px",
+              boxShadow: "0px 4px 6px rgba(0, 0, 0, 0.1)",
+              zIndex: 100,
+            }}
+          >
+            <p style={{ fontSize: "14px", marginBottom: "8px", color: "#333" }}>
+              Vedyx learns with you! Save your progress by signing up—it's free.
+            </p>
+            <button
+              style={{
+                backgroundColor: "teal",
+                color: "white",
+                padding: "8px 12px",
+                borderRadius: "6px",
+                border: "none",
+                cursor: "pointer",
+                marginRight: "10px",
+              }}
+              onClick={() => {
+                /* Implement sign-up logic */
+              }}
+            >
+              Sign Up Now
+            </button>
+            <button
+              style={{
+                backgroundColor: "transparent",
+                color: "teal",
+                border: "none",
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+              onClick={() => setShowPopup(false)}
+            >
+              Maybe Later
+            </button>
+          </div>
+        )}
 
-  };
-  
-  export default Chat;
-  
+        {showHardLimit && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(255, 255, 255, 0.9)",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              textAlign: "center",
+              padding: "20px",
+              zIndex: 100,
+            }}
+          >
+            <h2 style={{ fontSize: "18px", marginBottom: "12px", color: "#333" }}>
+            You've reached your guest question limit....
+            </h2>
+            <p style={{ fontSize: "14px", color: "#666", marginBottom: "16px" }}>
+            Create a free account to keep asking!
+            </p>
+            <button
+              style={{
+                backgroundColor: "teal",
+                color: "white",
+                padding: "10px 16px",
+                borderRadius: "6px",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+              onClick={() => {
+                /* Implement sign-up logic */
+              }}
+            >
+              Sign Up for Free
+            </button>
+            <p style={{ marginTop: "12px", fontSize: "12px", color: "#999" }}>
+              ⏳ Come back tomorrow
+            </p>
+          </div>
+        )}
+
+        {aiResponseBlurred && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(255, 255, 255, 0.5)",
+              backdropFilter: "blur(5px)",
+              zIndex: 90,
+            }}
+          ></div>
+        )}
+      </>
+    </div>
+  );
+};
+
+export default Chat;
