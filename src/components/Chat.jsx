@@ -16,7 +16,7 @@ import axios from "axios";
 import ChatInterface from "./ChatInterface";
 import GuestLimitHandler from "./GuestLimitHandler";
 
-const Chat = ({ user }) => {
+  const Chat = ({ user, setAuthMode, setAuthModalOpen }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -373,7 +373,7 @@ const Chat = ({ user }) => {
             }}
           >
             <p style={{ fontSize: "14px", marginBottom: "8px", color: "#333" }}>
-              Vedyx learns with you! Save your progress by signing up—it's free.
+              Vedyx learns with you! Save your progress by signing up—it's FREE.
             </p>
             <button
               style={{
@@ -386,18 +386,20 @@ const Chat = ({ user }) => {
                 marginRight: "10px",
               }}
               onClick={() => {
-                /* Implement sign-up logic */
+                setAuthMode("signup"); // Set mode to signup
+                setAuthModalOpen(true); // Open the modal
               }}
             >
               Sign Up Now
             </button>
             <button
-              style={{
+                style={{
                 backgroundColor: "transparent",
                 color: "teal",
                 border: "none",
                 cursor: "pointer",
                 textDecoration: "underline",
+                paddingTop: "10px", // Adjust this value as needed
               }}
               onClick={() => setShowPopup(false)}
             >
@@ -441,13 +443,14 @@ const Chat = ({ user }) => {
                 fontSize: "16px",
               }}
               onClick={() => {
-                /* Implement sign-up logic */
+                setAuthMode("signup"); // Set mode to signup
+                setAuthModalOpen(true); // Open the modal
               }}
             >
               Sign Up for Free
             </button>
-            <p style={{ marginTop: "12px", fontSize: "12px", color: "#999" }}>
-              ⏳ Come back tomorrow
+            <p style={{ marginTop: "14px", fontSize: "12px", color: "#999" }}>
+              Or you could come back tomorrow
             </p>
           </div>
         )}

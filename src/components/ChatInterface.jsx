@@ -2,14 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
 import { auth } from "../services/firebase";
-import { 
-  Box, Button, Textarea, IconButton, Flex, Avatar, Menu, MenuButton, 
-  MenuList, MenuItem, Tooltip, VStack, HStack, Text 
+import {
+  Box, Button, Textarea, IconButton, Flex, Avatar, Menu, MenuButton,
+  MenuList, MenuItem, Tooltip, VStack, HStack, Text, Divider, useColorModeValue
 } from "@chakra-ui/react";
-import { FaRegFileAlt, FaShareAlt, FaCog, FaQuestionCircle, FaBars, FaPlus } from "react-icons/fa";
+import { FaRegFileAlt, FaShareAlt, FaCog, FaQuestionCircle, FaBars, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 
 const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, chatHistory, loadChat, startNewChat }) => {
-  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768); // Start collapsed on mobile
   const navigate = useNavigate();
   const messagesEndRef = useRef(null);
 
@@ -27,52 +27,80 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Handle screen resize
+  useEffect(() => {
+    const handleResize = () => {
+      setSidebarCollapsed(window.innerWidth < 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const bgColor = useColorModeValue("gray.50", "gray.900");
+  const sidebarBg = useColorModeValue("white", "gray.800");
+
   return (
-    <Flex height="100vh" bg="gray.100">
-      {/* Left Sidebar for Chat History */}
-      {sidebarVisible && (
-        <Box w="18%" minW="220px" p={4} bg="white" boxShadow="md" overflowY="auto" display="flex" flexDirection="column">
-          {/* Collapse Sidebar Button */}
-          <IconButton 
-            icon={<FaBars />} 
-            aria-label="Collapse Sidebar" 
-            variant="ghost" 
-            alignSelf="flex-start" 
-            onClick={() => setSidebarVisible(false)} 
-          />
-          
-          {/* New Chat Button */}
-          <Button leftIcon={<FaPlus />} colorScheme="teal" onClick={startNewChat} mb={4}>
-            New Chat
-          </Button>
+    <Flex height="100vh" bg={bgColor} flexDirection={{ base: "column", md: "row" }}>
 
-          <Text fontSize="xl" fontWeight="bold" mb={4}>
-            Chat History
-          </Text>
+      {/* Sidebar with Collapsible Feature */}
+      <Box
+        w={sidebarCollapsed ? "60px" : "250px"}
+        minW={sidebarCollapsed ? "60px" : "250px"}
+        transition="width 0.3s"
+        bg={sidebarBg}
+        boxShadow="md"
+        p={sidebarCollapsed ? 2 : 4}
+        overflowY="auto"
+        display="flex"
+        flexDirection="column"
+      >
+        {/* Sidebar Toggle Button */}
+        <IconButton
+          icon={sidebarCollapsed ? <FaChevronRight /> : <FaChevronLeft />}
+          aria-label="Toggle Sidebar"
+          variant="ghost"
+          alignSelf="flex-start"
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          mb={3}
+        />
 
-          {/* Chat History List */}
-          <VStack align="start" spacing={2} flex="1">
-            {chatHistory.map((chat) => (
-              <Button key={chat.id} variant="ghost" width="100%" justifyContent="flex-start" onClick={() => loadChat(chat.id)}>
-                {chat.title}
+        {!sidebarCollapsed && (
+          <>
+            {/* New Chat Button */}
+            <Button leftIcon={<FaPlus />} colorScheme="teal" onClick={startNewChat} mb={4}>
+              New Chat
+            </Button>
+
+            {/* Chat History */}
+            <Text fontSize="lg" fontWeight="bold" mb={3}>
+              Chat History
+            </Text>
+
+            <VStack align="start" spacing={2} flex="1">
+              {chatHistory.map((chat) => (
+                <Button key={chat.id} variant="ghost" width="100%" justifyContent="flex-start" onClick={() => loadChat(chat.id)}>
+                  {chat.title}
+                </Button>
+              ))}
+            </VStack>
+
+            <Divider my={4} />
+
+            {/* Bottom Sidebar Links */}
+            <VStack spacing={2} align="start" mt="auto" pb={2}>
+              <Button leftIcon={<FaQuestionCircle />} variant="ghost" width="100%" justifyContent="flex-start">
+                Help
               </Button>
-            ))}
-          </VStack>
+              <Button leftIcon={<FaCog />} variant="ghost" width="100%" justifyContent="flex-start" onClick={() => navigate("/settings")}>
+                Settings
+              </Button>
+            </VStack>
+          </>
+        )}
+      </Box>
 
-          {/* Help & Settings at Bottom */}
-          <VStack spacing={2} align="start" mt="auto" pb={2}>
-            <Button leftIcon={<FaQuestionCircle />} variant="ghost" width="100%" justifyContent="flex-start">
-              Help
-            </Button>
-            <Button leftIcon={<FaCog />} variant="ghost" width="100%" justifyContent="flex-start">
-              Settings
-            </Button>
-          </VStack>
-        </Box>
-      )}
-
-      {/* Centered Chat Container */}
-      <Box flex="1" maxW="1200px" display="flex" flexDirection="column" p={4} bg="gray.50">
+      {/* Main Chat Area */}
+      <Box flex="1" maxW="900px" display="flex" flexDirection="column" p={4} mx="auto" width="100%">
         {/* Chat Messages */}
         <Box flex="1" p={4} overflowY="auto" bg="white" boxShadow="md" borderRadius="md">
           {messages.length === 0 ? (
@@ -81,7 +109,7 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
             </Text>
           ) : (
             messages.map((msg, index) => (
-              <Flex key={index} justify="flex-start" mb={4}>
+              <Flex key={index} justify={msg.sender === "user" ? "flex-end" : "flex-start"} mb={4}>
                 <Box
                   p={3}
                   borderRadius="md"
@@ -94,7 +122,7 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
               </Flex>
             ))
           )}
-          <div ref={messagesEndRef} /> {/* Auto-scroll reference */}
+          <div ref={messagesEndRef} />
         </Box>
 
         {/* Input Area */}
@@ -108,15 +136,14 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
               resize="none"
               flex="1"
             />
-            <Button 
-              colorScheme="teal" 
+            <Button
+              colorScheme="teal"
               onClick={() => {
-                console.log("Send button clicked, input:", input);
-                if (!input.trim()) return; // Prevent empty messages
+                if (!input.trim()) return;
                 sendMessage();
-              }} 
-              isLoading={loading} 
-              loadingText="Thinking..." 
+              }}
+              isLoading={loading}
+              loadingText="Thinking..."
               ml={2}
             >
               Send
@@ -125,7 +152,7 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
         </Box>
       </Box>
 
-      {/* Top Right Icons */}
+      {/* Top Right Profile & Actions */}
       <Box position="absolute" top="4" right="4">
         <HStack spacing={4}>
           <Tooltip label="Reference Materials" hasArrow>
@@ -146,6 +173,7 @@ const ChatInterface = ({ user, messages, input, setInput, sendMessage, loading, 
           </Menu>
         </HStack>
       </Box>
+
     </Flex>
   );
 };
