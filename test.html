@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Google Login Test</title>
+    <!-- Load Firebase v9 (compat mode for non-ESM usage) -->
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <h1>Firebase Google Login Test</h1>
+    <button id="googleSignIn">Sign in with Google</button>
+
+    <script>
+        // 🔹 Replace with your Firebase Config from Firebase Console
+        const firebaseConfig = {
+            apiKey: "AIzaSyBnTn5fM9TUEM9hHLMTJXZK6ZldbNzpmv4",
+            authDomain: "vedyx-ai.firebaseapp.com",
+            projectId: "vedyx-ai",
+            storageBucket: "vedyx-ai.firebasestorage.app",
+            messagingSenderId: "81285666995",
+            appId: "1:81285666995:web:f49ff96f24ac8a786af8c6",
+            measurementId: "G-HHZ100XD21"
+            };
+
+        // 🔥 Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // ✅ Google Sign-In
+        document.getElementById("googleSignIn").addEventListener("click", () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    alert(`✅ Logged in as: ${result.user.email}`);
+                    console.log("Success:", result);
+                })
+                .catch((error) => {
+                    alert(`❌ Error: ${error.message}`);
+                    console.error("Login Error:", error);
+                });
+        });
+    </script>
+</body>
+</html>

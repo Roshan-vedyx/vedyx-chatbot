@@ -1,0 +1,18 @@
+{
+  "name": "vedyx-firebase-authbackups",
+  "version": "1.0.0",
+  "description": "Cloud Function for Firebase Auth backups",
+  "main": "index.js",
+  "scripts": {
+    "deploy": "gcloud functions deploy vedyx-firebase-authbackups --gen2 --region=asia-south1 --runtime=nodejs20 --source=. --entry-point=backupAuthUsers --trigger-http --allow-unauthenticated",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^4.0.0"
+  },
+  "private": true
+}
