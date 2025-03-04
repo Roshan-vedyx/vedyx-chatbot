@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Modal, 
@@ -18,31 +18,22 @@ import {
   Box
 } from "@chakra-ui/react";
 import { FcGoogle } from "react-icons/fc";
-import { renderGoogleSignInButton, signInWithGoogle } from "../services/firebase";
+import { SignIn, SignUp, useSignIn, useSignUp } from "@clerk/clerk-react";
 
-function AuthModal({ isOpen, onClose, onLogin, onSignup, mode = "login" }) {
+function AuthModal({ isOpen, onClose, mode = "login" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(mode === "signup");
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const googleButtonRef = useRef(null);
+  const { signIn } = useSignIn();
+  const { signUp } = useSignUp();
   const navigate = useNavigate();
   const toast = useToast();
 
   useEffect(() => {
     setIsSignup(mode === "signup");
   }, [mode, isOpen]);
-
-  useEffect(() => {
-    if (isOpen && googleButtonRef.current) {
-      renderGoogleSignInButton("google-signin-button", {
-        theme: "filled_blue",
-        size: "large",
-        text: "signin_with"
-      });
-    }
-  }, [isOpen]);
 
   const handleSubmit = async () => {
     setError(null);
@@ -53,35 +44,18 @@ function AuthModal({ isOpen, onClose, onLogin, onSignup, mode = "login" }) {
     setIsLoading(true);
     try {
       if (isSignup) {
-        await onSignup(email, password);
+        await signUp.create({ emailAddress: email, password });
         toast({ title: "Account created.", status: "success", duration: 5000, isClosable: true });
         onClose();
         navigate("/preferences");
       } else {
-        await onLogin(email, password);
+        await signIn.create({ identifier: email, password });
         toast({ title: "Login successful.", status: "success", duration: 3000, isClosable: true });
         onClose();
         navigate("/chat");
       }
     } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleManualGoogleLogin = async () => {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const user = await signInWithGoogle();
-      if (user) {
-        toast({ title: "Google login successful.", status: "success", duration: 3000, isClosable: true });
-        onClose();
-        navigate("/chat");
-      }
-    } catch (err) {
-      setError(err.message || "Google login failed. Please try again.");
+      setError(err.errors ? err.errors[0].message : "An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -108,8 +82,10 @@ function AuthModal({ isOpen, onClose, onLogin, onSignup, mode = "login" }) {
               {isSignup ? "Sign Up For FREE!" : "Login"}
             </Button>
             <Divider />
-            <Box id="google-signin-button" ref={googleButtonRef} width="full" height="42px" display="flex" justifyContent="center" />
-            <Button leftIcon={<FcGoogle />} colorScheme="blue" variant="outline" width="full" onClick={handleManualGoogleLogin} isLoading={isLoading}>
+            <Box width="full" height="42px" display="flex" justifyContent="center">
+              {isSignup ? <SignUp afterSignUpUrl="/preferences" /> : <SignIn afterSignInUrl="/chat" />}
+            </Box>
+            <Button leftIcon={<FcGoogle />} colorScheme="blue" variant="outline" width="full">
               Sign in with Google
             </Button>
             <Text fontSize="sm" cursor="pointer" color="blue.500" textAlign="center" onClick={() => setIsSignup(!isSignup)}>

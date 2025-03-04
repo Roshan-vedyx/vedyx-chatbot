@@ -9,7 +9,7 @@ const axios = require("axios");
 admin.initializeApp();
 
 // Google OAuth2 Client
-const GOOGLE_CLIENT_ID = "81285666995-k5nbqbqnhj5kpr4q6pupl7hbsska7j7c.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "81285666995-gckhv7gklluv076l9u5asner82tigm3t.apps.googleusercontent.com";
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Express App

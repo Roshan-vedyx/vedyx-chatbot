@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from "react-router-dom";
-import { auth, db, signInWithGoogle } from "./services/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { useUser, SignInButton, SignUpButton, SignOutButton } from "@clerk/clerk-react"; // Clerk imports
 import AuthModal from "./components/AuthModal";
 import Chat from "./components/Chat";
 import PreferencesForm from "./components/PreferencesForm";
@@ -10,7 +8,7 @@ import { Box, Spinner, Text, Button, Flex, IconButton, Avatar, Tooltip, HStack, 
 import { FaRegFileAlt, FaShareAlt } from "react-icons/fa";
 
 function AppContent() {
-  const [user, setUser] = useState(null);
+  const { isSignedIn, user } = useUser(); // Get user info from Clerk
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,51 +18,28 @@ function AppContent() {
   const toast = useToast();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      console.log("\ud83d\udc64 Auth State Changed:", currentUser);
-      setUser(currentUser);
+    if (user) {
+      console.log("👤 Clerk Authenticated User:", user);
+      loadPreviousMessages(user.id);
       setIsLoading(false);
-
-      if (currentUser) {
-        loadPreviousMessages(currentUser.uid);
-      } else {
-        console.warn("\u26a0\ufe0f No User Logged In");
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    } else {
+      console.warn("⚠️ No User Logged In");
+      setIsLoading(false);
+    }
+  }, [user]);
 
   const loadPreviousMessages = async (userId) => {
     try {
       setIsLoading(true);
-      const q = query(
-        collection(db, "chats"),
-        where("userId", "==", userId),
-        orderBy("createdAt", "asc")
-      );
-      const querySnapshot = await getDocs(q);
-      setMessages(querySnapshot.empty ? [] : querySnapshot.docs[0].data().messages || []);
+      // Fetch messages from Firestore or your database (replace with your implementation)
+      // Example:
+      // const messages = await fetchMessagesFromDatabase(userId);
+      // setMessages(messages);
     } catch (error) {
       console.error("Error loading messages:", error);
       setError("Error loading messages. Please check your Firestore rules.");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setAuthModalOpen(false);
-      console.log("⚡ Initiating Google sign-in...");
-      const user = await signInWithGoogle();
-      if (user) {
-        toast({ title: "Sign-in successful", status: "success", duration: 3000, isClosable: true });
-        navigate("/chat");
-      }
-    } catch (error) {
-      console.error("❌ Google login error:", error);
-      setError(`Google login failed: ${error.message}`);
     }
   };
 
@@ -81,16 +56,25 @@ function AppContent() {
       <Flex className="chat-header" justify="space-between" align="center" p={3} bg="white" boxShadow="md" position="sticky" top="0" zIndex="1000">
         <Text fontSize="xl" fontWeight="bold" ml={4}>Vedyx AI Tutor</Text>
         <HStack spacing={4} mr={4}>
-          {!user ? (
+          {!isSignedIn ? (
             <>
-              <Button variant="outline" color="black" borderColor="black" onClick={() => { setAuthMode("login"); setAuthModalOpen(true); }}>Log In</Button>
-              <Button colorScheme="teal" onClick={() => { setAuthMode("signup"); setAuthModalOpen(true); }}>Sign Up</Button>
+              <SignInButton mode="modal">
+                <Button variant="outline" color="black" borderColor="black">Log In</Button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <Button colorScheme="teal">Sign Up</Button>
+              </SignUpButton>
             </>
           ) : (
             <>
               <Tooltip label="Resources"><IconButton icon={<FaRegFileAlt />} aria-label="Resources" variant="ghost" /></Tooltip>
               <Tooltip label="Share"><IconButton icon={<FaShareAlt />} aria-label="Share" variant="ghost" /></Tooltip>
-              <Tooltip label="Profile & Settings"><Avatar size="sm" cursor="pointer" onClick={() => signOut(auth)} /></Tooltip>
+              <Tooltip label="Profile & Settings">
+              <Avatar size="sm" src={user.imageUrl} cursor="pointer" crossOrigin="anonymous" />
+              </Tooltip>
+              <SignOutButton>
+                <Button size="sm" variant="ghost">Log Out</Button>
+              </SignOutButton>
             </>
           )}
         </HStack>
@@ -102,7 +86,7 @@ function AppContent() {
         <Route path="/preferences" element={<PreferencesForm user={user} />} />
       </Routes>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} mode={authMode} onGoogleLogin={handleGoogleLogin} />
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setAuthModalOpen(false)} mode={authMode} />
     </Box>
   );
 }
