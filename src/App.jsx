@@ -82,7 +82,18 @@ function AppContent() {
 
       <Routes>
         <Route path="/" element={<Navigate to="/chat" />} />
-        <Route path="/chat" element={<Chat user={user} messages={messages} setMessages={setMessages} />} />
+        <Route 
+          path="/chat" 
+          element={
+          <Chat 
+            user={user} 
+            messages={messages} 
+            setMessages={setMessages} 
+            setAuthMode={setAuthMode}  // ✅ Fix: Pass the function 
+            setAuthModalOpen={setAuthModalOpen}  // ✅ Fix: Pass the function
+          />
+        } 
+        />
         <Route path="/preferences" element={<PreferencesForm user={user} />} />
       </Routes>
 

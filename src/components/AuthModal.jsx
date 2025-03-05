@@ -1,63 +1,49 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Modal, 
-  ModalOverlay, 
-  ModalContent, 
-  ModalHeader, 
-  ModalBody, 
-  ModalCloseButton,
-  FormControl, 
-  FormLabel, 
-  Input, 
-  Button, 
-  VStack, 
-  Text, 
-  Divider,
-  useToast,
-  Box
-} from "@chakra-ui/react";
-import { FcGoogle } from "react-icons/fc";
-import { SignIn, SignUp, useSignIn, useSignUp } from "@clerk/clerk-react";
+import { Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, VStack, Text, Divider, Box } from "@chakra-ui/react";
+import { SignIn, SignUp, useUser } from "@clerk/clerk-react";
+import { setDoc, doc, getDoc } from "firebase/firestore";
+import { db } from "../services/firebase";
 
 function AuthModal({ isOpen, onClose, mode = "login" }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isSignup, setIsSignup] = useState(mode === "signup");
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useSignIn();
-  const { signUp } = useSignUp();
+  const { user } = useUser();
   const navigate = useNavigate();
-  const toast = useToast();
 
   useEffect(() => {
     setIsSignup(mode === "signup");
   }, [mode, isOpen]);
 
-  const handleSubmit = async () => {
-    setError(null);
-    if (!email || !password) {
-      setError("Please enter both email and password.");
+  useEffect(() => {
+    if (user) {
+      createUserInFirestore(user);
+      navigate("/chat"); // Ensure redirect happens correctly
+    }
+  }, [user, navigate]);
+
+  const createUserInFirestore = async (user) => {
+    if (!user || !user.primaryEmailAddress) {
+      console.error("❌ No user or email found in Clerk user object:", user);
       return;
     }
-    setIsLoading(true);
-    try {
-      if (isSignup) {
-        await signUp.create({ emailAddress: email, password });
-        toast({ title: "Account created.", status: "success", duration: 5000, isClosable: true });
-        onClose();
-        navigate("/preferences");
-      } else {
-        await signIn.create({ identifier: email, password });
-        toast({ title: "Login successful.", status: "success", duration: 3000, isClosable: true });
-        onClose();
-        navigate("/chat");
-      }
-    } catch (err) {
-      setError(err.errors ? err.errors[0].message : "An error occurred. Please try again.");
-    } finally {
-      setIsLoading(false);
+
+    const userEmail = user.primaryEmailAddress.emailAddress; // Extract email as string
+    console.log("✅ Attempting to create user in Firestore:", userEmail);
+
+    const userRef = doc(db, "users", userEmail); // Now it's a valid string path
+    const userSnap = await getDoc(userRef);
+    
+    if (!userSnap.exists()) {
+      console.log("🆕 Creating new user in Firestore...");
+      await setDoc(userRef, {
+        email: userEmail,
+        created_at: new Date(),
+        preferences: {},
+        chat_history: []
+      });
+      console.log("✅ User successfully created in Firestore!");
+    } else {
+      console.log("ℹ️ User already exists in Firestore.");
     }
   };
 
@@ -69,25 +55,10 @@ function AuthModal({ isOpen, onClose, mode = "login" }) {
         <ModalCloseButton />
         <ModalBody pb={6}>
           <VStack spacing={4}>
-            {error && <Text color="red.500" fontSize="sm" textAlign="center">{error}</Text>}
-            <FormControl>
-              <FormLabel>Email</FormLabel>
-              <Input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Password</FormLabel>
-              <Input type="password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </FormControl>
-            <Button colorScheme="teal" width="full" onClick={handleSubmit} isLoading={isLoading}>
-              {isSignup ? "Sign Up For FREE!" : "Login"}
-            </Button>
-            <Divider />
-            <Box width="full" height="42px" display="flex" justifyContent="center">
-              {isSignup ? <SignUp afterSignUpUrl="/preferences" /> : <SignIn afterSignInUrl="/chat" />}
+            <Box width="full" display="flex" justifyContent="center">
+              {isSignup ? <SignUp afterSignUpUrl="/chat" /> : <SignIn afterSignInUrl="/chat" />}
             </Box>
-            <Button leftIcon={<FcGoogle />} colorScheme="blue" variant="outline" width="full">
-              Sign in with Google
-            </Button>
+            <Divider />
             <Text fontSize="sm" cursor="pointer" color="blue.500" textAlign="center" onClick={() => setIsSignup(!isSignup)}>
               {isSignup ? "Already have an account? Log in" : "Don't have an account? Sign up for FREE!"}
             </Text>
